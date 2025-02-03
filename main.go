@@ -71,10 +71,20 @@ func (c *civoDNSProviderSolver) Present(ch *whapi.ChallengeRequest) error {
 		return err
 	}
 
-	rn := strings.TrimSuffix(ch.ResolvedFQDN, "."+ch.ResolvedZone)
-	d, err := client.GetDNSDomain(strings.TrimSuffix(ch.ResolvedZone, "."))
+	resolvedZone := ch.ResolvedZone
+	fqdn := ch.ResolvedFQDN
+
+	fqdnSplit := strings.SplitAfter(fqdn, ".")
+	zoneSplit := strings.SplitAfter(resolvedZone, ".")
+
+	if zoneSplit[0] == "." && strings.Contains(fqdnSplit[0], "_acme-challenge") {
+		resolvedZone = strings.TrimPrefix(fqdn, fqdnSplit[0])
+	}
+
+	rn := strings.TrimSuffix(ch.ResolvedFQDN, "."+resolvedZone)
+	d, err := client.GetDNSDomain(strings.TrimSuffix(resolvedZone, "."))
 	if err != nil {
-		log.Errorf("failed to get DNS domain '%s' from civo: %s", ch.ResolvedZone, err)
+		log.Errorf("failed to get DNS domain '%s' from civo: %s", resolvedZone, err)
 		return err
 	}
 
@@ -92,7 +102,7 @@ func (c *civoDNSProviderSolver) Present(ch *whapi.ChallengeRequest) error {
 		return err
 	}
 
-	log.Infof("Successfully created txt record for fqdn=%s zone=%s", ch.ResolvedFQDN, ch.ResolvedZone)
+	log.Infof("Successfully created txt record for fqdn=%s zone=%s", ch.ResolvedFQDN, resolvedZone)
 	return nil
 }
 
